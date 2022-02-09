@@ -4,10 +4,12 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Water } from 'three/examples/jsm/objects/Water.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import { Group } from 'three';
+import SimplexNoise from "https://cdn.JsDelivr.net/npm/simplex-noise/dist/esm/simplex-noise.min.js";
+import { BoundingBoxHelper } from 'three';
+
 let controls, water, sun, mesh;
 let camera, scene, renderer;
 let container, stats;
-
 
 init();
 animate();
@@ -62,7 +64,6 @@ function init() {
     const parameters = {
       elevation: 2,
       azimuth: 180
-
     };
 
     const pmremGenerator = new THREE.PMREMGenerator( renderer );
@@ -83,14 +84,6 @@ function init() {
     updateSun();
 
     
-    // Geometry
-    const SphereGeometry = new THREE.SphereGeometry(15, 15, 15);
-    const SphereMaterial = new THREE.MeshLambertMaterial({
-      wireframe: true
-    });
-
-    const ball = new THREE.Mesh(SphereGeometry, SphereMaterial);
-    scene.add(ball);
 
 
     // Orbit Controller
@@ -108,16 +101,14 @@ function init() {
 };
 
 
-
-
-
+// animate function
 function animate() {
   requestAnimationFrame(animate);
   render();
-  // stats.update();
+  stats.update();
 }
 
-
+// render function
 function render() {
   const time = performance.now() * 0.001;
   // mesh.position.y = Math.sin(time) * 20 + 5
@@ -129,162 +120,178 @@ function render() {
 }
 
 
+// load music
+var noise = new SimplexNoise();
 
-// function init() {
 
-//     container = document.getElementById( 'container' );
+var vizInit = function () {
+  var file = document.getElementById("thefile");
+  var audio = document.getElementById("audio");
+  var fileLabel = document.querySelector("label.file");
 
-//     //
+  document.onload = function(e){
+    audio.play();
+    play();
+  }
 
-//     renderer = new THREE.WebGLRenderer();
-//     renderer.setPixelRatio( window.devicePixelRatio );
-//     renderer.setSize( window.innerWidth, window.innerHeight );
-//     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-//     container.appendChild( renderer.domElement );
+  file.onchange = function(){
+    fileLabel.classList.add('normal');
+    var files = this.files;
 
-//     //
+    audio.src = URL.createObjectURL(files[0]);
+    audio.load();
+    audio.play();
+    play();
+  }
 
-//     scene = new THREE.Scene();
+  function play() {
+    var context = new AudioContext();
+    var src = context.createMediaElementSource(audio);
+    var analyser = context.createAnalyser();
+    src.connect(analyser);
+    analyser.connect(context.destination);
+    analyser.fftSize = 512;
+    var bufferLength = analyser.frequencyBinCount;
+    var dataArray = new Uint8Array(bufferLength);
 
-//     camera = new THREE.PerspectiveCamera( 55, window.innerWidth / window.innerHeight, 1, 20000 );
-//     camera.position.set( 30, 30, 100 );
+    var group = new THREE.Group();
+    var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0,0,100);
+    camera.lookAt(scene.position);
+    scene.add(camera);
+  
+    // window.addEventListener('resize', 1, false);
 
-//     //
+    var renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
 
-//     sun = new THREE.Vector3();
+    // Geometry
+    var SphereGeometry = new THREE.SphereGeometry(15, 15, 15);
+    var SphereTexture = new THREE.TextureLoader().load('textures/earth.jpeg');
+    var SphereMaterial = new THREE.MeshLambertMaterial({
+      map: SphereTexture,
+      wireframe: false
+    });
 
-//     // Water
+    var ball = new THREE.Mesh(SphereGeometry, SphereMaterial);
+    ball.position.set(0, 0, 0);
+    group.add(ball);
 
-//     const waterGeometry = new THREE.PlaneGeometry( 10000, 10000 );
+    var ambientLight = new THREE.AmbientLight(0xaaaaaa);
+    scene.add(ambientLight);
 
-//     water = new Water(
-//         waterGeometry,
-//         {
-//             textureWidth: 512,
-//             textureHeight: 512,
-//             waterNormals: new THREE.TextureLoader().load( 'textures/waternormals.jpg', function ( texture ) {
+    var spotLight = new THREE.SpotLight(0xffffff);
+    spotLight.intensity = 0.9;
+    spotLight.position.set(-10, 40, 20);
+    spotLight.lookAt(ball);
+    spotLight.castShadow = true;
+    scene.add(spotLight);
 
-//                 texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    scene.add(group);
+    document.getElementById('container').appendChild(renderer.domElement);
 
-//             } ),
-//             sunDirection: new THREE.Vector3(),
-//             sunColor: 0xffffff,
-//             waterColor: 0x001e0f,
-//             distortionScale: 3.7,
-//             fog: scene.fog !== undefined
-//         }
-//     );
+    render();
 
-//     water.rotation.x = - Math.PI / 2;
 
-//     scene.add( water );
+    function render() {
+      analyser.getByteFrequencyData(dataArray);
+      var lowerHalfArray = dataArray.slice(0, (dataArray.length/2) - 1);
+      var upperHalfArray = dataArray.slice((dataArray.length/2) - 1, dataArray.length - 1);
 
-//     // Skybox
+      var overallAvg = avg(dataArray);
+      var lowerMax = max(lowerHalfArray);
+      var lowerAvg = avg(lowerHalfArray);
+      var upperMax = max(upperHalfArray);
+      var upperAvg = avg(upperHalfArray);
 
-//     const sky = new Sky();
-//     sky.scale.setScalar( 10000 );
-//     scene.add( sky );
+      var lowerMaxFr = lowerMax / lowerHalfArray.length;
+      var lowerAvgFr = lowerAvg / lowerHalfArray.length;
+      var upperMaxFr = upperMax / upperHalfArray.length;
+      var upperAvgFr = upperAvg / upperHalfArray.length;
+      // makeVertexList(ball);
 
-//     const skyUniforms = sky.material.uniforms;
+      makeRoughBall(ball, modulate(Math.pow(lowerMaxFr, 0.8), 0, 1, 0, 8), modulate(upperAvgFr, 0, 1, 0, 4));
+      requestAnimationFrame(render);
 
-//     skyUniforms[ 'turbidity' ].value = 10;
-//     skyUniforms[ 'rayleigh' ].value = 2;
-//     skyUniforms[ 'mieCoefficient' ].value = 0.005;
-//     skyUniforms[ 'mieDirectionalG' ].value = 0.8;
+      group.rotation.y += 0.005;
+      renderer.render(scene, camera);
+      requestAnimationFrame(render);
+      
+      // function makeVertexList(mesh){
+      //     var vertex = new THREE.Vector3();
+      //     var array = mesh.geometry.attributes.position;
+      //     let vertexArray = [];
+      //     for (var i = 0, l = array.count; i < l; i ++ ) {
+      //       vertex.fromBufferAttribute( array, i );
+      //       vertex.x = array.getX(i)
+      //       vertex.y = array.getY(i)
+      //       vertex.z = array.getZ(i)
+      //       vertexArray.push({x: vertex.x, y: vertex.y, z: vertex.z});
+      //       // console.log('x', vertex.x);
+      //       // console.log('y', vertex.y);
+      //       // console.log('z', vertex.z);
+      //       // console.log('vertex', vertex, i);
+      //       // vertexArray.AudioContextsetXYZ(i, vertex.x, vertex.y, vertex.z);
+      //     }
+      //     // console.log(vertex);
+      //     console.log(vertexArray);
+      //     return vertexArray;
+      //   };
 
-//     const parameters = {
-//         elevation: 2,
-//         azimuth: 180
-//     };
 
-//     const pmremGenerator = new THREE.PMREMGenerator( renderer );
+      function makeRoughBall(mesh, bassFr, treFr) {
+          var vertex = new THREE.Vector3();
+          var array = mesh.geometry.attributes.position;
+          var vertexArray = [];
+          for (var i = 0, l = array.count; i < l; i ++ ) {
+            // vertex.fromBufferAttribute( array, i );
+            vertex.x = array.getX(i)
+            vertex.y = array.getY(i)
+            vertex.z = array.getZ(i)
+            vertexArray.push( { 'x': vertex.x, 'y': vertex.y, 'z': vertex.z } );
 
-//     function updateSun() {
+          }
+          vertexArray.forEach(function (ver) {
+              var offset = mesh.geometry.parameters.radius;
+              var amp = 7;
+              var time = window.performance.now();
+              // ver.normalize();
+              var rf = 0.00001;
+              var distance = (offset + bassFr ) + noise.noise3D(vertex.x + time *rf*7, vertex.y +  time*rf*8, vertex.z + time*rf*9) * amp * treFr;
+              // ver.multiplyScalar(distance);
+          });
+          mesh.geometry.verticesNeedUpdate = true;
+          mesh.geometry.normalsNeedUpdate = true;
+          // mesh.geometry.positioncomputeVertexNormals();
+          // mesh.geometry.positioncomputeFaceNormals();
+      }
 
-//         const phi = THREE.MathUtils.degToRad( 90 - parameters.elevation );
-//         const theta = THREE.MathUtils.degToRad( parameters.azimuth );
+      audio.play();
 
-//         sun.setFromSphericalCoords( 1, phi, theta );
+    }
+  }
+}
 
-//         sky.material.uniforms[ 'sunPosition' ].value.copy( sun );
-//         water.material.uniforms[ 'sunDirection' ].value.copy( sun ).normalize();
 
-//         scene.environment = pmremGenerator.fromScene( sky ).texture;
+window.onload = vizInit();
+// document.body.addEventListener('touchend', function(ev) { context.resume(); });
 
-//     }
+//some helper functions here
+function fractionate(val, minVal, maxVal) {
+  return (val - minVal)/(maxVal - minVal);
+}
 
-//     updateSun();
+function modulate(val, minVal, maxVal, outMin, outMax) {
+  var fr = fractionate(val, minVal, maxVal);
+  var delta = outMax - outMin;
+  return outMin + (fr * delta);
+}
 
-//     //
+function avg(arr){
+  var total = arr.reduce(function(sum, b) { return sum + b; });
+  return (total / arr.length);
+}
 
-//     const geometry = new THREE.BoxGeometry( 30, 30, 30 );
-//     const material = new THREE.MeshStandardMaterial( { roughness: 0 } );
-
-//     mesh = new THREE.Mesh( geometry, material );
-//     scene.add( mesh );
-
-//     //
-
-//     controls = new OrbitControls( camera, renderer.domElement );
-//     controls.maxPolarAngle = Math.PI * 0.495;
-//     controls.target.set( 0, 10, 0 );
-//     controls.minDistance = 40.0;
-//     controls.maxDistance = 200.0;
-//     controls.update();
-
-//     //
-
-//     stats = new Stats();
-//     container.appendChild( stats.dom );
-
-//     // GUI
-
-//     const gui = new GUI();
-
-//     const folderSky = gui.addFolder( 'Sky' );
-//     folderSky.add( parameters, 'elevation', 0, 90, 0.1 ).onChange( updateSun );
-//     folderSky.add( parameters, 'azimuth', - 180, 180, 0.1 ).onChange( updateSun );
-//     folderSky.open();
-
-//     const waterUniforms = water.material.uniforms;
-
-//     const folderWater = gui.addFolder( 'Water' );
-//     folderWater.add( waterUniforms.distortionScale, 'value', 0, 8, 0.1 ).name( 'distortionScale' );
-//     folderWater.add( waterUniforms.size, 'value', 0.1, 10, 0.1 ).name( 'size' );
-//     folderWater.open();
-
-//     //
-
-//     window.addEventListener( 'resize', onWindowResize );
-
-// }
-
-// function onWindowResize() {
-
-//     camera.aspect = window.innerWidth / window.innerHeight;
-//     camera.updateProjectionMatrix();
-
-//     renderer.setSize( window.innerWidth, window.innerHeight );
-
-// }
-
-// function animate() {
-
-//     requestAnimationFrame( animate );
-//     render();
-//     stats.update();
-
-// }
-
-// function render() {
-
-//     const time = performance.now() * 0.001;
-
-//     mesh.position.y = Math.sin( time ) * 20 + 5;
-//     mesh.rotation.x = time * 0.5;
-//     mesh.rotation.z = time * 0.51;
-
-//     renderer.render( scene, camera );
-
-// }
-
+function max(arr){
+  return arr.reduce(function(a, b){ return Math.max(a, b); })
+}
