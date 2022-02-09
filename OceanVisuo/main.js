@@ -210,61 +210,16 @@ var vizInit = function () {
       var upperAvgFr = upperAvg / upperHalfArray.length;
       // makeVertexList(ball);
 
-      makeRoughBall(ball, modulate(Math.pow(lowerMaxFr, 0.8), 0, 1, 0, 8), modulate(upperAvgFr, 0, 1, 0, 4));
-      requestAnimationFrame(render);
-
-      group.rotation.y += 0.005;
+      // makeRoughBall(ball, modulate(Math.pow(lowerMaxFr, 0.8), 0, 1, 0, 8), modulate(upperAvgFr, 0, 1, 0, 4));
+      // requestAnimationFrame(render);
+      var time = performance.now() * 0.0001;
+      // group.position.y = Math.sin(time) * 20 + 5;
+      ball.position.y = upperMaxFr * 50;
+      ball.rotation.x = time * 0.7;
+      ball.rotation.z = time * 0.51;
+      // group.rotation.z += (lowerMaxFr - 2);
       renderer.render(scene, camera);
       requestAnimationFrame(render);
-      
-      // function makeVertexList(mesh){
-      //     var vertex = new THREE.Vector3();
-      //     var array = mesh.geometry.attributes.position;
-      //     let vertexArray = [];
-      //     for (var i = 0, l = array.count; i < l; i ++ ) {
-      //       vertex.fromBufferAttribute( array, i );
-      //       vertex.x = array.getX(i)
-      //       vertex.y = array.getY(i)
-      //       vertex.z = array.getZ(i)
-      //       vertexArray.push({x: vertex.x, y: vertex.y, z: vertex.z});
-      //       // console.log('x', vertex.x);
-      //       // console.log('y', vertex.y);
-      //       // console.log('z', vertex.z);
-      //       // console.log('vertex', vertex, i);
-      //       // vertexArray.AudioContextsetXYZ(i, vertex.x, vertex.y, vertex.z);
-      //     }
-      //     // console.log(vertex);
-      //     console.log(vertexArray);
-      //     return vertexArray;
-      //   };
-
-
-      function makeRoughBall(mesh, bassFr, treFr) {
-          var vertex = new THREE.Vector3();
-          var array = mesh.geometry.attributes.position;
-          var vertexArray = [];
-          for (var i = 0, l = array.count; i < l; i ++ ) {
-            // vertex.fromBufferAttribute( array, i );
-            vertex.x = array.getX(i)
-            vertex.y = array.getY(i)
-            vertex.z = array.getZ(i)
-            vertexArray.push( { 'x': vertex.x, 'y': vertex.y, 'z': vertex.z } );
-
-          }
-          vertexArray.forEach(function (ver) {
-              var offset = mesh.geometry.parameters.radius;
-              var amp = 7;
-              var time = window.performance.now();
-              // ver.normalize();
-              var rf = 0.00001;
-              var distance = (offset + bassFr ) + noise.noise3D(vertex.x + time *rf*7, vertex.y +  time*rf*8, vertex.z + time*rf*9) * amp * treFr;
-              // ver.multiplyScalar(distance);
-          });
-          mesh.geometry.verticesNeedUpdate = true;
-          mesh.geometry.normalsNeedUpdate = true;
-          // mesh.geometry.positioncomputeVertexNormals();
-          // mesh.geometry.positioncomputeFaceNormals();
-      }
 
       audio.play();
 
