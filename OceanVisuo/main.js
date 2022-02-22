@@ -3,9 +3,10 @@ import Stats from 'three/examples/jsm/libs/stats.module.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Water } from 'three/examples/jsm/objects/Water.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
-import { Group } from 'three';
+import { Group, Sphere } from 'three';
 import SimplexNoise from "https://cdn.JsDelivr.net/npm/simplex-noise/dist/esm/simplex-noise.min.js";
 import { BoundingBoxHelper } from 'three';
+import { setQuaternionFromProperEuler } from 'three/src/math/MathUtils';
 
 let controls, water, sun, mesh;
 let camera, scene, renderer;
@@ -167,15 +168,23 @@ var vizInit = function () {
 
     // Geometry
     var SphereGeometry = new THREE.SphereGeometry(15, 15, 15);
-    var SphereTexture = new THREE.TextureLoader().load('textures/earth.jpeg');
+    // var SphereTexture = new THREE.TextureLoader().load('textures/golfball.jpeg');
     var SphereMaterial = new THREE.MeshLambertMaterial({
-      map: SphereTexture,
-      wireframe: false
+      // map: SphereTexture,
+      color: '#CC0066',
+      wireframe: true
     });
 
-    var ball = new THREE.Mesh(SphereGeometry, SphereMaterial);
-    ball.position.set(0, 0, 0);
-    group.add(ball);
+    var ballCenter = new THREE.Mesh(SphereGeometry, SphereMaterial);
+    var ballLeft = new THREE.Mesh(SphereGeometry, SphereMaterial);
+    var ballRight = new THREE.Mesh(SphereGeometry, SphereMaterial);
+
+    ballCenter.position.set(0, 0, 0);
+    ballLeft.position.set(-80, 0, 30);
+    ballRight.position.set(80, 0, 30);
+    group.add(ballCenter);
+    group.add(ballLeft);
+    group.add(ballRight);
 
     var ambientLight = new THREE.AmbientLight(0xaaaaaa);
     scene.add(ambientLight);
@@ -183,7 +192,10 @@ var vizInit = function () {
     var spotLight = new THREE.SpotLight(0xffffff);
     spotLight.intensity = 0.9;
     spotLight.position.set(-10, 40, 20);
-    spotLight.lookAt(ball);
+    
+    spotLight.lookAt(ballCenter);
+    spotLight.lookAt(ballLeft);
+    spotLight.lookAt(ballRight);
     spotLight.castShadow = true;
     scene.add(spotLight);
 
@@ -213,10 +225,18 @@ var vizInit = function () {
       // makeRoughBall(ball, modulate(Math.pow(lowerMaxFr, 0.8), 0, 1, 0, 8), modulate(upperAvgFr, 0, 1, 0, 4));
       // requestAnimationFrame(render);
       var time = performance.now() * 0.0001;
-      // group.position.y = Math.sin(time) * 20 + 5;
-      ball.position.y = upperMaxFr * 50;
-      ball.rotation.x = time * 0.7;
-      ball.rotation.z = time * 0.51;
+      ballCenter.position.z = Math.sin(time) * 20 + 5;
+      ballCenter.position.y = upperMaxFr * 50;
+      ballCenter.rotation.x = time * 0.7;
+      // ballCenter.rotation.z = time * 0.51;
+
+      ballLeft.rotation.x = time * 0.7;
+      ballLeft.position.z = - upperMaxFr * 50; 
+      ballLeft.rotation.y = time * 0.51;
+
+      ballRight.position.z = - upperMaxFr * 50;
+      ballRight.rotation.x = time * 0.7;
+      ballRight.rotation.y = time * 0.51;
       // group.rotation.z += (lowerMaxFr - 2);
       renderer.render(scene, camera);
       requestAnimationFrame(render);
